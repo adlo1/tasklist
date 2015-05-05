@@ -125,7 +125,7 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
        {
         
       gtk_table_attach_defaults (GTK_TABLE(tasklist->table), tasklist->button, left_attach, 
-        right_attach, top_attach, bottom_attach);
+		right_attach, top_attach, bottom_attach);
 	  
 	  
 	  
@@ -150,8 +150,8 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 	g_signal_connect (tasklist->button, "drag-data-get",
                 G_CALLBACK (my_tasklist_drag_data_get_handl), xid);
             
-  g_signal_handlers_disconnect_matched (tasklist->window, G_SIGNAL_MATCH_FUNC,
-    NULL, NULL, NULL, my_tasklist_on_name_changed, NULL);
+  g_signal_handlers_disconnect_matched (tasklist->window, G_SIGNAL_MATCH_FUNC, 
+	NULL, NULL, NULL, my_tasklist_on_name_changed, NULL);
   
 
 	
