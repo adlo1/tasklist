@@ -131,7 +131,8 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 	  
 	  
 			g_signal_connect (tasklist->button, "clicked", my_tasklist_button_clicked, tasklist->window);
-			g_signal_connect (GTK_BUTTON(tasklist->button), "clicked", my_tasklist_button_emit_signal, tasklist);
+			g_signal_connect (GTK_BUTTON(tasklist->button), "clicked", 
+				my_tasklist_button_emit_signal, tasklist);
     
 			if (right_attach % 3 == 0)
 			{
@@ -166,7 +167,8 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 			if (new_window)
                 
             {                                           
-				g_signal_handlers_disconnect_by_func (tasklist->window, my_tasklist_window_workspace_changed, tasklist);
+				g_signal_handlers_disconnect_by_func (tasklist->window, 
+					my_tasklist_window_workspace_changed, tasklist);
                 
                 g_signal_connect (tasklist->window, "workspace-changed",
 					G_CALLBACK (my_tasklist_window_workspace_changed), tasklist);                
