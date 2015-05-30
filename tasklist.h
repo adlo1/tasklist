@@ -22,15 +22,18 @@ struct _MyTasklist
 	GtkEventBox event_box;
 	
 	GtkWidget *table;
-	GtkWidget *button;
-	WnckWindow *window;
 	WnckScreen *screen;
-	void (*func) ();
+	
+	GList *tasks;
+	
 	gboolean my_tasklist_button_click_action_is_set;
-	const GtkTargetEntry target;
+	
+	
 	
 	
 };
+
+
 
 struct _MyTasklistClass
 {
@@ -51,6 +54,9 @@ static void my_tasklist_drag_data_get_handl
 static void my_tasklist_set_button_click_action (MyTasklist *tasklist, void (*func) ());
 
 static void my_tasklist_button_emit_signal (GtkButton *button, MyTasklist *tasklist);
+
+
+
 G_END_DECLS
 
 #endif /*__MY_TASKLIST_H__*/
