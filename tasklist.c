@@ -2,6 +2,71 @@
 #include <libwnck/libwnck.h>
 #include "tasklist.h"
 
+#define TABLE_COLUMNS 3
+
+
+
+#define LIGHT_TASK_TYPE (light_task_get_type())
+#define LIGHT_TASK(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), LIGHT_TASK_TYPE, LightTask))
+#define LIGHT_TASK_CLASS (klass) (G_TYPE_CHECK_CLASS_CAST ((klass), LIGHT_TASK_TYPE, LightTaskClass))
+#define IS_LIGHT_TASK (obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), LIGHT_TASK_TYPE))
+#define IS_LIGHT_TASK_CLASS(klass), (G_TYPE_CHECK_CLASS_TYPE ((klass), LIGHT_TASK_TYPE))
+
+typedef struct _LightTask LightTask;
+typedef struct _LightTaskClass LightTaskClass;
+
+struct _LightTask
+{
+	GtkWidget *button;
+	GtkWidget *label;
+	WnckWindow *window;
+	const GtkTargetEntry target;
+	GdkPixbuf *pixbuf;
+	GtkWidget *icon;
+	GtkWidget *vbox;
+};
+
+struct _LightTaskClass
+{
+	GObjectClass parent_class;
+};
+
+G_DEFINE_TYPE (LightTask, light_task, G_TYPE_OBJECT)
+
+static void light_task_class_init (LightTaskClass *klass)
+
+{
+	
+}
+
+static void light_task_init (LightTask *task)
+
+{
+	
+}
+
+static LightTask *
+light_task_new_from_window (MyTasklist *tasklist, WnckWindow *window)
+{
+	LightTask *task;
+	task = g_object_new (LIGHT_TASK_TYPE, NULL);
+	
+	task->window = window;
+	
+	return task;
+	
+}
+
+
+static void my_tasklist_window_icon_changed (WnckWindow *window, LightTask *task)
+{
+	task->pixbuf = wnck_window_get_icon (task->window);
+	gtk_image_set_from_pixbuf (GTK_IMAGE(task->icon), task->pixbuf);
+}
+
+
+
+
 enum {
 	BUTTON_CLICK_ACTION_SIGNAL,
 	LAST_SIGNAL
@@ -88,7 +153,8 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 			
 
 	gtk_widget_destroy (tasklist->table);
-	tasklist->table=gtk_table_new (3,3,TRUE);
+	
+	tasklist->table=gtk_table_new (3,TABLE_COLUMNS,TRUE);
 	
 	GList *window_l;
 	
@@ -104,37 +170,45 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 
   for (window_l = wnck_screen_get_windows (tasklist->screen); window_l != NULL; window_l = window_l->next)
     {
-      tasklist->window = WNCK_WINDOW (window_l->data);
+           
+      LightTask *task = light_task_new_from_window (tasklist, WNCK_WINDOW (window_l->data));
       
       //Determine if window is on the active workspace
       
-      if(wnck_window_is_on_workspace(tasklist->window,wnck_screen_get_active_workspace(tasklist->screen)))
+      if(wnck_window_is_on_workspace(task->window,wnck_screen_get_active_workspace(tasklist->screen)))
 	{
 		const GtkTargetEntry targets [] = {"application/x-wnck-window-id",0,0};
-		GtkWidget *label = gtk_label_new_with_mnemonic(wnck_window_get_name (tasklist->window));
-		tasklist->button = gtk_button_new();
+		GtkWidget *label = gtk_label_new_with_mnemonic(wnck_window_get_name (task->window));
+		task->vbox = gtk_vbox_new (FALSE, 0);
+		
+		task->pixbuf = wnck_window_get_icon (task->window);
+		task->icon = gtk_image_new_from_pixbuf (task->pixbuf);
+		
+		task->button = gtk_button_new();
 		gtk_label_set_ellipsize(GTK_LABEL(label),PANGO_ELLIPSIZE_END);
-		gtk_container_add (GTK_CONTAINER(tasklist->button),label);
-		gtk_widget_set_size_request (tasklist->button, 200, 40);
+		gtk_container_add (GTK_CONTAINER(task->button),task->vbox);
+		gtk_box_pack_start (GTK_BOX (task->vbox), task->icon, TRUE, TRUE, 0);
+		gtk_box_pack_start (GTK_BOX (task->vbox), label, TRUE, TRUE, 0);
+		gtk_widget_set_size_request (task->button, 200, 80);
       
       
     
-		gulong xid = wnck_window_get_xid (tasklist->window);
+		gulong xid = wnck_window_get_xid (task->window);
         
-		if (!(wnck_window_is_skip_tasklist(tasklist->window)))
+		if (!(wnck_window_is_skip_tasklist(task->window)))
        
 		{
         
-			gtk_table_attach_defaults (GTK_TABLE(tasklist->table), tasklist->button, left_attach, 
+			gtk_table_attach_defaults (GTK_TABLE(tasklist->table), task->button, left_attach, 
 					right_attach, top_attach, bottom_attach);
 	  
 	  
 	  
-			g_signal_connect (tasklist->button, "clicked", my_tasklist_button_clicked, tasklist->window);
-			g_signal_connect (GTK_BUTTON(tasklist->button), "clicked", 
+			g_signal_connect (task->button, "clicked", my_tasklist_button_clicked, task->window);
+			g_signal_connect (GTK_BUTTON(task->button), "clicked", 
 				my_tasklist_button_emit_signal, tasklist);
     
-			if (right_attach % 3 == 0)
+			if (right_attach % TABLE_COLUMNS == 0)
 			{
 				top_attach++;
 				bottom_attach++;
@@ -147,19 +221,19 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 				right_attach++;
 			}
 	
-			gtk_drag_source_set (tasklist->button,GDK_BUTTON1_MASK,targets,1,GDK_ACTION_MOVE);
+			gtk_drag_source_set (task->button,GDK_BUTTON1_MASK,targets,1,GDK_ACTION_MOVE);
 	
-			g_signal_connect (tasklist->button, "drag-data-get",
+			g_signal_connect (task->button, "drag-data-get",
 					G_CALLBACK (my_tasklist_drag_data_get_handl), xid);
             
-			g_signal_handlers_disconnect_matched (tasklist->window, G_SIGNAL_MATCH_FUNC, 
+			g_signal_handlers_disconnect_matched (task->window, G_SIGNAL_MATCH_FUNC, 
 					NULL, NULL, NULL, my_tasklist_on_name_changed, NULL);
   
 
 	
-			g_signal_connect (tasklist->window, "name-changed",
-					G_CALLBACK (my_tasklist_on_name_changed), label);
-    
+			
+					
+			    
     
     
 			//If the window is new, connect to its workspace-changed signal
@@ -167,11 +241,17 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 			if (new_window)
                 
 			{                                           
-				g_signal_handlers_disconnect_by_func (tasklist->window, 
+				g_signal_handlers_disconnect_by_func (task->window, 
 					my_tasklist_window_workspace_changed, tasklist);
                 
-				g_signal_connect (tasklist->window, "workspace-changed",
-					G_CALLBACK (my_tasklist_window_workspace_changed), tasklist);                
+				g_signal_connect (task->window, "workspace-changed",
+					G_CALLBACK (my_tasklist_window_workspace_changed), tasklist); 
+					
+				g_signal_connect (task->window, "icon-changed",
+					G_CALLBACK (my_tasklist_window_icon_changed), task); 
+					
+				g_signal_connect (task->window, "name-changed",
+					G_CALLBACK (my_tasklist_on_name_changed), label);	              
 			}
                 
     
