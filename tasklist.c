@@ -33,15 +33,41 @@ struct _LightTaskClass
 
 G_DEFINE_TYPE (LightTask, light_task, G_TYPE_OBJECT)
 
+static void light_task_finalize (GObject *object);
+static void my_tasklist_drag_begin_handl
+(GtkWidget *widget, GdkDragContext *context, MyTasklist *tasklist);
+
 static void light_task_class_init (LightTaskClass *klass)
 
 {
+	GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 	
+	gobject_class->finalize = light_task_finalize;
 }
 
 static void light_task_init (LightTask *task)
 
 {
+	
+}
+
+static void light_task_finalize (GObject *object)
+{
+	LightTask *task;
+	task = LIGHT_TASK (object);
+	if (task->button)
+	{
+		gtk_widget_destroy (task->button);
+		task->button = NULL;
+		task->icon = NULL;
+		task->label = NULL;
+	}
+	
+	if (task->window)
+	{
+		g_object_unref (task->window);
+		task->window = NULL;
+	}
 	
 }
 
@@ -53,6 +79,7 @@ light_task_new_from_window (MyTasklist *tasklist, WnckWindow *window)
 	
 	task->window = window;
 	
+		
 	return task;
 	
 }
@@ -69,6 +96,7 @@ static void my_tasklist_window_icon_changed (WnckWindow *window, LightTask *task
 
 enum {
 	BUTTON_CLICK_ACTION_SIGNAL,
+	DRAG_BEGIN_ACTION_SIGNAL,
 	LAST_SIGNAL
 };
 
@@ -76,6 +104,8 @@ static void my_tasklist_class_init (MyTasklistClass *klass);
 static void my_tasklist_init (MyTasklist *tasklist);
 
 static guint button_click_action_signals[LAST_SIGNAL]={0};
+
+static guint drag_begin_action_signals[LAST_SIGNAL]={0};
 
 GType my_tasklist_get_type (void)
 {
@@ -112,12 +142,21 @@ static void my_tasklist_class_init (MyTasklistClass *klass)
 		NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
+		
+		drag_begin_action_signals [DRAG_BEGIN_ACTION_SIGNAL] = 
+		g_signal_new ("drag-begin-action",
+		G_TYPE_FROM_CLASS(klass),
+		G_SIGNAL_RUN_FIRST|G_SIGNAL_ACTION,
+		0,
+		NULL,
+		NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0);
 	
 }
 
 static void my_tasklist_init (MyTasklist *tasklist)
 {
-	
 	
 	tasklist->table = gtk_table_new (3, 3, TRUE);
 	gtk_container_add (GTK_CONTAINER(tasklist), tasklist->table);
@@ -144,13 +183,30 @@ GtkWidget* my_tasklist_new (void)
 	return GTK_WIDGET(g_object_new (my_tasklist_get_type (), NULL));
 }
 
-
+static void
+my_tasklist_free_tasks (MyTasklist *tasklist)
+{
+	GList *l;
+	if (tasklist->tasks)
+	{
+		l = tasklist->tasks;
+		
+		while (l != NULL)
+		{
+			LightTask *task = LIGHT_TASK (l->data);
+			l = l->next;
+			
+			gtk_widget_destroy (task->button);
+		}
+	}
+	
+	g_assert (tasklist->tasks == NULL);
+	
+}
 
 static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_window)
 {
-
-           
-			
+	   
 
 	gtk_widget_destroy (tasklist->table);
 	
@@ -171,26 +227,29 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
   for (window_l = wnck_screen_get_windows (tasklist->screen); window_l != NULL; window_l = window_l->next)
     {
            
+      
       LightTask *task = light_task_new_from_window (tasklist, WNCK_WINDOW (window_l->data));
       
       //Determine if window is on the active workspace
       
-      if(wnck_window_is_on_workspace(task->window,wnck_screen_get_active_workspace(tasklist->screen)))
+      if(wnck_window_is_on_workspace(task->window, wnck_screen_get_active_workspace(tasklist->screen)))
 	{
+		
+						
 		const GtkTargetEntry targets [] = {"application/x-wnck-window-id",0,0};
-		GtkWidget *label = gtk_label_new_with_mnemonic(wnck_window_get_name (task->window));
+		
+		task->label = gtk_label_new_with_mnemonic(wnck_window_get_name (task->window));
 		task->vbox = gtk_vbox_new (FALSE, 0);
 		
 		task->pixbuf = wnck_window_get_icon (task->window);
 		task->icon = gtk_image_new_from_pixbuf (task->pixbuf);
-		
+	
 		task->button = gtk_button_new();
-		gtk_label_set_ellipsize(GTK_LABEL(label),PANGO_ELLIPSIZE_END);
+		gtk_label_set_ellipsize(GTK_LABEL(task->label),PANGO_ELLIPSIZE_END);
 		gtk_container_add (GTK_CONTAINER(task->button),task->vbox);
 		gtk_box_pack_start (GTK_BOX (task->vbox), task->icon, TRUE, TRUE, 0);
-		gtk_box_pack_start (GTK_BOX (task->vbox), label, TRUE, TRUE, 0);
+		gtk_box_pack_start (GTK_BOX (task->vbox), task->label, TRUE, TRUE, 0);
 		gtk_widget_set_size_request (task->button, 200, 80);
-      
       
     
 		gulong xid = wnck_window_get_xid (task->window);
@@ -225,6 +284,10 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 	
 			g_signal_connect (task->button, "drag-data-get",
 					G_CALLBACK (my_tasklist_drag_data_get_handl), xid);
+			
+			g_signal_connect (task->button, "drag-begin",
+					G_CALLBACK (my_tasklist_drag_begin_handl), tasklist);		
+					
             
 			g_signal_handlers_disconnect_matched (task->window, G_SIGNAL_MATCH_FUNC, 
 					NULL, NULL, NULL, my_tasklist_on_name_changed, NULL);
@@ -251,12 +314,13 @@ static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_windo
 					G_CALLBACK (my_tasklist_window_icon_changed), task); 
 					
 				g_signal_connect (task->window, "name-changed",
-					G_CALLBACK (my_tasklist_on_name_changed), label);	              
+					G_CALLBACK (my_tasklist_on_name_changed), task->label);	              
 			}
                 
     
 		}
 	}
+	
 }
 
 gtk_container_add(GTK_CONTAINER(tasklist), tasklist->table);
@@ -289,6 +353,12 @@ static void my_tasklist_button_emit_signal (GtkButton *button, MyTasklist *taskl
 {
 	g_signal_emit_by_name (tasklist, "button-click-action");
 	
+}
+
+static void my_tasklist_drag_begin_handl
+(GtkWidget *widget, GdkDragContext *context, MyTasklist *tasklist)
+{
+	g_signal_emit_by_name (tasklist, "drag-begin-action");
 }
 
 static void
