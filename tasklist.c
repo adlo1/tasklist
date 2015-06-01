@@ -96,7 +96,7 @@ static void my_tasklist_window_icon_changed (WnckWindow *window, LightTask *task
 
 enum {
 	BUTTON_CLICK_ACTION_SIGNAL,
-	DRAG_BEGIN_ACTION_SIGNAL,
+	BUTTON_DRAG_BEGIN_ACTION_SIGNAL,
 	LAST_SIGNAL
 };
 
@@ -105,7 +105,7 @@ static void my_tasklist_init (MyTasklist *tasklist);
 
 static guint button_click_action_signals[LAST_SIGNAL]={0};
 
-static guint drag_begin_action_signals[LAST_SIGNAL]={0};
+static guint button_drag_begin_action_signals[LAST_SIGNAL]={0};
 
 GType my_tasklist_get_type (void)
 {
@@ -143,8 +143,8 @@ static void my_tasklist_class_init (MyTasklistClass *klass)
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
 		
-		drag_begin_action_signals [DRAG_BEGIN_ACTION_SIGNAL] = 
-		g_signal_new ("drag-begin-action",
+		button_drag_begin_action_signals [BUTTON_DRAG_BEGIN_ACTION_SIGNAL] = 
+		g_signal_new ("button-drag-begin-action",
 		G_TYPE_FROM_CLASS(klass),
 		G_SIGNAL_RUN_FIRST|G_SIGNAL_ACTION,
 		0,
@@ -358,7 +358,7 @@ static void my_tasklist_button_emit_signal (GtkButton *button, MyTasklist *taskl
 static void my_tasklist_drag_begin_handl
 (GtkWidget *widget, GdkDragContext *context, MyTasklist *tasklist)
 {
-	g_signal_emit_by_name (tasklist, "drag-begin-action");
+	g_signal_emit_by_name (tasklist, "button-drag-begin-action");
 }
 
 static void
