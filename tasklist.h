@@ -28,6 +28,8 @@ struct _MyTasklist
 	
 	gboolean my_tasklist_button_click_action_is_set;
 	
+	GHashTable *win_hash;
+	
 	
 	
 	
@@ -42,18 +44,15 @@ struct _MyTasklistClass
 
 GType my_tasklist_get_type (void);
 GtkWidget* my_tasklist_new (void);
-static void my_tasklist_update_windows (MyTasklist *tasklist, gboolean new_window);
+static void my_tasklist_update_windows (MyTasklist *tasklist);
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
 static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
 static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist);
 static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window);
-static void my_tasklist_drag_data_get_handl
-(GtkWidget *widget, GdkDragContext *context, GtkSelectionData *selection_data,
-        guint target_type, guint time, gulong xid);
         
 static void my_tasklist_set_button_click_action (MyTasklist *tasklist, void (*func) ());
 
-static void my_tasklist_button_emit_signal (GtkButton *button, MyTasklist *tasklist);
+static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist);
 
 
 
