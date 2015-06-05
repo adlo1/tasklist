@@ -263,11 +263,15 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 			}
 			*/
 			
-			light_task_finalize (G_OBJECT (task));
+			
 			l = l->next;
 			
-			if (task->button)		
-			gtk_widget_destroy (task->button);
+			if (task->button)
+			{	
+				gtk_widget_destroy (task->button);
+				task->button = 0;
+			}
+			
 			g_object_unref (task);
 			
 			
@@ -341,13 +345,10 @@ static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label)
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
 {
 	my_tasklist_update_windows (tasklist);
-	
-	
 }
 
 static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist)
 {
-	g_print ("%s", "workspace changed");
 	my_tasklist_update_windows (tasklist);
 }
 
