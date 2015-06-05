@@ -140,20 +140,20 @@ static void my_tasklist_window_icon_changed (WnckWindow *window, LightTask *task
 
 
 enum {
-	BUTTON_CLICK_ACTION_SIGNAL,
-	BUTTON_DRAG_BEGIN_ACTION_SIGNAL,
-	BUTTON_DRAG_END_ACTION_SIGNAL,
+	TASK_BUTTON_CLICKED_SIGNAL,
+	TASK_BUTTON_DRAG_BEGIN_SIGNAL,
+	TASK_BUTTON_DRAG_END_SIGNAL,
 	LAST_SIGNAL
 };
 
 static void my_tasklist_class_init (MyTasklistClass *klass);
 static void my_tasklist_init (MyTasklist *tasklist);
 
-static guint button_click_action_signals[LAST_SIGNAL]={0};
+static guint task_button_clicked_signals[LAST_SIGNAL]={0};
 
-static guint button_drag_begin_action_signals[LAST_SIGNAL]={0};
+static guint task_button_drag_begin_signals[LAST_SIGNAL]={0};
 
-static guint button_drag_end_action_signals[LAST_SIGNAL]={0};
+static guint task_button_drag_end_signals[LAST_SIGNAL]={0};
 
 GType my_tasklist_get_type (void)
 {
@@ -181,8 +181,8 @@ GType my_tasklist_get_type (void)
 static void my_tasklist_class_init (MyTasklistClass *klass)
 
 {
-	button_click_action_signals [BUTTON_CLICK_ACTION_SIGNAL] = 
-		g_signal_new ("button-click-action",
+	task_button_clicked_signals [TASK_BUTTON_CLICKED_SIGNAL] = 
+		g_signal_new ("task-button-clicked",
 		G_TYPE_FROM_CLASS(klass),
 		G_SIGNAL_RUN_FIRST|G_SIGNAL_ACTION,
 		0,
@@ -191,8 +191,8 @@ static void my_tasklist_class_init (MyTasklistClass *klass)
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
 		
-		button_drag_begin_action_signals [BUTTON_DRAG_BEGIN_ACTION_SIGNAL] = 
-		g_signal_new ("button-drag-begin-action",
+		task_button_drag_begin_signals [TASK_BUTTON_DRAG_BEGIN_SIGNAL] = 
+		g_signal_new ("task-button-drag-begin",
 		G_TYPE_FROM_CLASS(klass),
 		G_SIGNAL_RUN_FIRST|G_SIGNAL_ACTION,
 		0,
@@ -201,8 +201,8 @@ static void my_tasklist_class_init (MyTasklistClass *klass)
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
 		
-		button_drag_end_action_signals [BUTTON_DRAG_END_ACTION_SIGNAL] = 
-		g_signal_new ("button-drag-end-action",
+		task_button_drag_end_signals [TASK_BUTTON_DRAG_END_SIGNAL] = 
+		g_signal_new ("task-button-drag-end",
 		G_TYPE_FROM_CLASS(klass),
 		G_SIGNAL_RUN_FIRST|G_SIGNAL_ACTION,
 		0,
@@ -263,11 +263,12 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 			}
 			*/
 			
-			light_task_finalize (task);
+			light_task_finalize (G_OBJECT (task));
 			l = l->next;
 			
 			if (task->button)		
 			gtk_widget_destroy (task->button);
+			g_object_unref (task);
 			
 			
 		}
@@ -307,7 +308,7 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 				gtk_table_attach_defaults (GTK_TABLE(tasklist->table), task->button, left_attach, 
 					right_attach, top_attach, bottom_attach);
 					
-				gtk_widget_show (task->button);
+				gtk_widget_show_all (task->button);
 					
 					
 				if (right_attach % TABLE_COLUMNS == 0)
@@ -359,20 +360,20 @@ static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window)
 
 static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist)
 {
-	g_signal_emit_by_name (tasklist, "button-click-action");
+	g_signal_emit_by_name (tasklist, "task-button-clicked");
 	
 }
 
 static void my_tasklist_drag_begin_handl
 (GtkWidget *widget, GdkDragContext *context, LightTask *task)
 {
-	g_signal_emit_by_name (task->tasklist, "button-drag-begin-action");
+	g_signal_emit_by_name (task->tasklist, "task-button-drag-begin");
 }
 
 static void my_tasklist_drag_end_handl
 (GtkWidget *widget, GdkDragContext *context, LightTask *task)
 {
-	g_signal_emit_by_name (task->tasklist, "button-drag-end-action");
+	g_signal_emit_by_name (task->tasklist, "task-button-drag-end");
 }
 
 static void
@@ -416,7 +417,6 @@ static void light_task_create_widgets (LightTask *task)
 	gtk_box_pack_start (GTK_BOX (task->vbox), task->label, TRUE, TRUE, 0);
 	gtk_widget_set_size_request (task->button, 200, 80);
 	
-	gtk_widget_show_all (task->button);
 	
 	task->icon_changed_tag = g_signal_connect (task->window, "icon-changed",
 					G_CALLBACK (my_tasklist_window_icon_changed), task);
@@ -445,10 +445,10 @@ static void light_task_create_widgets (LightTask *task)
 					
 					
 	g_signal_connect_object (task->button, "clicked", 
-					my_tasklist_button_clicked, task->window,
+					G_CALLBACK (my_tasklist_button_clicked), task->window,
 					0);
 	
 	g_signal_connect_object (GTK_BUTTON(task->button), "clicked", 
-					my_tasklist_button_emit_click_signal, task->tasklist,
+					G_CALLBACK (my_tasklist_button_emit_click_signal), task->tasklist,
 					0);
 }
