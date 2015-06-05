@@ -61,7 +61,7 @@ int main (int argc, char *argv[])
 	gtk_box_pack_start (GTK_BOX (hbox), button, FALSE, FALSE, 0);
 	gtk_box_pack_start (GTK_BOX (hbox), pager, FALSE, FALSE, 0);
 	
-	g_signal_connect (tasklist, "button-drag-begin-action", 
+	g_signal_connect (tasklist, "task-button-drag-begin", 
 		G_CALLBACK (drag_begin_handl), pager);
 			
 	gtk_widget_show_all (window);
