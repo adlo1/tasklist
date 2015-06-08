@@ -1,3 +1,17 @@
+/* This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>
+ */
+ 
 #ifndef MY_TASKLIST_H
 #define MY_TASKLIST_H
 
@@ -25,6 +39,7 @@ struct _MyTasklist
 	WnckScreen *screen;
 	
 	GList *tasks;
+	GList *skipped_windows;
 	
 	gboolean my_tasklist_button_click_action_is_set;
 	
@@ -44,15 +59,7 @@ struct _MyTasklistClass
 
 GType my_tasklist_get_type (void);
 GtkWidget* my_tasklist_new (void);
-static void my_tasklist_update_windows (MyTasklist *tasklist);
-static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
-static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
-static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist);
-static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window);
-        
-static void my_tasklist_set_button_click_action (MyTasklist *tasklist, void (*func) ());
 
-static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist);
 
 
 
