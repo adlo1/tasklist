@@ -1,10 +1,39 @@
+/* This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>
+ */
+ 
+ 
 #include <gtk/gtk.h>
 #include <libwnck/libwnck.h>
 #include "tasklist.h"
 
 #define TABLE_COLUMNS 3
 
+/* 
+ * This tasklist emits signals when various events happen. This allows
+ * the parent application to perform actions based on these events.
+ */
 
+static void my_tasklist_update_windows (MyTasklist *tasklist);
+static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
+static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
+static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist);
+static void my_tasklist_window_state_changed (WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist);
+static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window);
+        
+static void my_tasklist_set_button_click_action (MyTasklist *tasklist, void (*func) ());
+
+static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist);
 
 #define LIGHT_TASK_TYPE (light_task_get_type())
 #define LIGHT_TASK(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), LIGHT_TASK_TYPE, LightTask))
@@ -33,10 +62,17 @@ struct _LightTask
 	guint name_changed_tag;
 	guint icon_changed_tag;
 	guint workspace_changed_tag;
+	guint state_changed_tag;
 	
 	
 	
 };
+
+typedef struct _skipped_window
+{
+	WnckWindow *window;
+	gulong tag;
+}skipped_window;
 
 struct _LightTaskClass
 {
@@ -101,6 +137,13 @@ static void light_task_finalize (GObject *object)
 		g_signal_handler_disconnect (task->window,
 							task->workspace_changed_tag);
 		task->workspace_changed_tag = 0;
+	}
+	
+	if (task->state_changed_tag)
+	{
+		g_signal_handler_disconnect (task->window,
+							task->state_changed_tag);
+		task->state_changed_tag = 0;
 	}
 	
 	
@@ -253,16 +296,7 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 		{
 			
 			LightTask *task = LIGHT_TASK (l->data);
-			
-			/*
-			if (task->workspace_changed_tag)
-			{
-				g_signal_handler_disconnect (task->window,
-							task->workspace_changed_tag);
-				task->workspace_changed_tag = 0;
-			}
-			*/
-			
+				
 			
 			l = l->next;
 			
@@ -280,12 +314,35 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 	tasklist->tasks = NULL;
 	g_assert (tasklist->tasks == NULL);
 	
+	//Free skipped windows
+	
+	if (tasklist->skipped_windows)
+	
+	{
+		GList *skipped_l;
+		skipped_l = tasklist->skipped_windows;
+	
+		while (skipped_l != NULL)
+		{
+			skipped_window *skipped = (skipped_window *) skipped_l->data;
+			g_signal_handler_disconnect (skipped->window, skipped->tag);
+			g_object_unref (skipped->window);
+			g_free (skipped);
+			skipped_l = skipped_l->next;
+		}
+	
+		g_list_free (tasklist->skipped_windows);
+		tasklist->skipped_windows = NULL;
+		
+	}
+	
 }
 
 static void my_tasklist_update_windows (MyTasklist *tasklist)
 {
 	my_tasklist_free_tasks (tasklist);
 	GList *window_l;
+	WnckWindow *win;
 	
 	
 	//Table attachment values
@@ -298,10 +355,11 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 	
 	for (window_l = wnck_screen_get_windows (tasklist->screen); window_l != NULL; window_l = window_l->next)
     {
+		win = WNCK_WINDOW (window_l->data);
 		
-		if (!(wnck_window_is_skip_tasklist (WNCK_WINDOW (window_l->data))))
+		if (!(wnck_window_is_skip_tasklist (win)))
 		{
-			LightTask *task = light_task_new_from_window (tasklist, WNCK_WINDOW (window_l->data));
+			LightTask *task = light_task_new_from_window (tasklist, win);
 			tasklist->tasks = g_list_prepend (tasklist->tasks, task);
 			
 			
@@ -332,6 +390,19 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 			}
 			
 		}
+		
+		else
+		{
+			skipped_window *skipped = g_new0 (skipped_window, 1);
+			skipped->window = g_object_ref (win);
+			skipped->tag = g_signal_connect (G_OBJECT (win), "state-changed",
+							G_CALLBACK (my_tasklist_window_state_changed),
+							tasklist);
+							
+			tasklist->skipped_windows =
+				g_list_prepend (tasklist->skipped_windows,
+					(gpointer) skipped);
+		}
 	}
 	
 	
@@ -351,6 +422,15 @@ static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist
 {
 	my_tasklist_update_windows (tasklist);
 }
+
+static void my_tasklist_window_state_changed (WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist)
+{
+	if (changed_mask & WNCK_WINDOW_STATE_SKIP_TASKLIST)
+	{
+		my_tasklist_update_windows (tasklist);
+	}
+}
+
 
 static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window)
 	
@@ -427,6 +507,9 @@ static void light_task_create_widgets (LightTask *task)
 					
 	task->workspace_changed_tag = g_signal_connect (task->window, "workspace-changed",
 					G_CALLBACK (my_tasklist_window_workspace_changed), task->tasklist);
+					
+	task->state_changed_tag = g_signal_connect (task->window, "state-changed",
+					G_CALLBACK (my_tasklist_window_state_changed), task->tasklist);				
 					
 	static const GtkTargetEntry targets [] = { {"application/x-wnck-window-id",0,0} };
 					
