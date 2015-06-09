@@ -28,6 +28,8 @@
 
 static void my_tasklist_update_windows (MyTasklist *tasklist);
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
+static void my_tasklist_active_workspace_changed
+	(WnckScreen *screen, WnckWorkspace *previously_active_workspace, MyTasklist *tasklist);
 static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
 static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist);
 static void my_tasklist_window_state_changed
@@ -258,6 +260,8 @@ static void my_tasklist_class_init (MyTasklistClass *klass)
 
 static void my_tasklist_init (MyTasklist *tasklist)
 {
+	tasklist->tasks = NULL;
+	tasklist->skipped_windows = NULL;
 	
 	tasklist->table = gtk_table_new (3, TABLE_COLUMNS, TRUE);
 	gtk_container_add (GTK_CONTAINER(tasklist), tasklist->table);
@@ -276,7 +280,7 @@ static void my_tasklist_init (MyTasklist *tasklist)
                 G_CALLBACK (my_tasklist_on_window_opened), tasklist); 
                 
    g_signal_connect (tasklist->screen, "active-workspace-changed",
-               G_CALLBACK (my_tasklist_on_window_opened), tasklist);
+               G_CALLBACK (my_tasklist_active_workspace_changed), tasklist);
 
 }
 
@@ -342,6 +346,8 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 static void my_tasklist_update_windows (MyTasklist *tasklist)
 {
 	my_tasklist_free_tasks (tasklist);
+	gtk_table_resize (GTK_TABLE(tasklist->table), 3, TABLE_COLUMNS);
+	
 	GList *window_l;
 	WnckWindow *win;
 	
@@ -415,6 +421,12 @@ static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label)
 }
 
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
+{
+	my_tasklist_update_windows (tasklist);
+}
+
+static void my_tasklist_active_workspace_changed
+	(WnckScreen *screen, WnckWorkspace *previously_active_workspace, MyTasklist *tasklist)
 {
 	my_tasklist_update_windows (tasklist);
 }
