@@ -1,4 +1,6 @@
-/* This library is free software; you can redistribute it and/or
+/* Copyright (C) 2015 adlo
+ * 
+ * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2 of the License, or (at your option) any later version.
@@ -28,11 +30,9 @@ static void my_tasklist_update_windows (MyTasklist *tasklist);
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
 static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
 static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist *tasklist);
-static void my_tasklist_window_state_changed (WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist);
+static void my_tasklist_window_state_changed
+	(WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist);
 static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window);
-        
-static void my_tasklist_set_button_click_action (MyTasklist *tasklist, void (*func) ());
-
 static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist);
 
 #define LIGHT_TASK_TYPE (light_task_get_type())
@@ -266,8 +266,9 @@ static void my_tasklist_init (MyTasklist *tasklist)
 	gtk_widget_show (tasklist->table);
 	tasklist->screen = wnck_screen_get_default();
 	wnck_screen_force_update (tasklist->screen);
-	WnckWindow *window = 0;		//Dummy WnckWindow because the function requires me to pass a WnckWindow
-	my_tasklist_on_window_opened (tasklist->screen, window, tasklist);
+	
+	my_tasklist_update_windows (tasklist);
+	
 	g_signal_connect (tasklist->screen, "window-opened",
                 G_CALLBACK (my_tasklist_on_window_opened), tasklist); 
                 
@@ -423,7 +424,8 @@ static void my_tasklist_window_workspace_changed (WnckWindow *window, MyTasklist
 	my_tasklist_update_windows (tasklist);
 }
 
-static void my_tasklist_window_state_changed (WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist)
+static void my_tasklist_window_state_changed
+	(WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist)
 {
 	if (changed_mask & WNCK_WINDOW_STATE_SKIP_TASKLIST)
 	{
