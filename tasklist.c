@@ -66,6 +66,8 @@ struct _LightTask
 	guint workspace_changed_tag;
 	guint state_changed_tag;
 	
+	guint unique_id_counter;
+	
 	
 	
 };
