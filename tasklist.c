@@ -474,48 +474,7 @@ static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window
 
 static void my_tasklist_on_window_closed (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
 {
-	/*GList *window_l;
-	GList *skipped_l;
-	LightTask *task;
-	skipped_window *skipped;
-	
-	if (wnck_window_is_skip_tasklist (window))
-	{
-	
-		for (skipped_l = tasklist->skipped_windows; skipped_l != NULL; skipped_l = skipped_l->next)
-		{
-			skipped = skipped_l->data;
-		
-			if (skipped && skipped->window == window)
-			{
-				skipped_l = g_list_remove (skipped_l, skipped);
-				g_signal_handler_disconnect (skipped->window, skipped->tag);
-				g_object_unref (skipped->window);
-				g_free (skipped);
-			}
-		}
-	}
-	
-	
-	else
-	{
-	
-		for (window_l = tasklist->tasks; window_l != NULL; window_l = window_l->next)
-		{
-			task = window_l->data;
-		
-			if (task && task->window == window)
-			{
-				window_l = g_list_remove (window_l, task);
-				g_object_unref (task);
-				task = NULL;
-			}
-		}
-	}*/
-	
-	my_tasklist_update_windows (tasklist);
-			
-		
+	my_tasklist_update_windows (tasklist);	
 }
 
 static void my_tasklist_active_workspace_changed
