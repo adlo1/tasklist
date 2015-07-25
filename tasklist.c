@@ -229,7 +229,7 @@ GType my_tasklist_get_type (void)
 
 static void my_tasklist_class_init (MyTasklistClass *klass)
 
-{
+{	
 	task_button_clicked_signals [TASK_BUTTON_CLICKED_SIGNAL] = 
 		g_signal_new ("task-button-clicked",
 		G_TYPE_FROM_CLASS(klass),
@@ -326,6 +326,7 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 		}
 	}
 
+	g_list_free (tasklist->tasks);
 	tasklist->tasks = NULL;
 	my_tasklist_free_skipped_windows (tasklist);
 	
@@ -351,6 +352,7 @@ my_tasklist_free_skipped_windows (MyTasklist *tasklist)
 			skipped_l = skipped_l->next;
 		}
 		
+		g_list_free (tasklist->skipped_windows);
 		tasklist->skipped_windows = NULL;
 	
 
@@ -440,7 +442,9 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 
 static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label) 
 {
-	gtk_label_set_text (GTK_LABEL(label), wnck_window_get_name (window));
+	const gchar *name;
+	name = wnck_window_get_name (window);
+	gtk_label_set_text (GTK_LABEL(label), name);
 }
 
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
