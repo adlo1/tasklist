@@ -451,6 +451,8 @@ static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label)
 
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
 {
+	LightTask *task;
+	
 	if (wnck_window_is_skip_tasklist (window))
 	{
 		skipped_window *skipped = g_new0 (skipped_window, 1);
@@ -465,7 +467,7 @@ static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window
 		return;
 	}
 	
-	LightTask *task = light_task_new_from_window (tasklist, window);
+	task = light_task_new_from_window (tasklist, window);
 	
 	tasklist->tasks = g_list_prepend (tasklist->tasks, task);
 	
