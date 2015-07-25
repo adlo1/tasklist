@@ -45,6 +45,8 @@ static void my_tasklist_free_skipped_windows (MyTasklist *tasklist);
 #define IS_LIGHT_TASK (obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), LIGHT_TASK_TYPE))
 #define IS_LIGHT_TASK_CLASS(klass), (G_TYPE_CHECK_CLASS_TYPE ((klass), LIGHT_TASK_TYPE))
 
+GType light_task_get_type (void);
+
 typedef struct _LightTask LightTask;
 typedef struct _LightTaskClass LightTaskClass;
 
@@ -383,9 +385,6 @@ static void my_tasklist_attach_widget (LightTask *task, MyTasklist *tasklist)
 
 static void my_tasklist_update_windows (MyTasklist *tasklist)
 {
-	my_tasklist_free_tasks (tasklist);
-	gtk_table_resize (GTK_TABLE(tasklist->table), 3, TABLE_COLUMNS);
-	
 	GList *window_l;
 	WnckWindow *win;
 	
@@ -397,6 +396,10 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 	tasklist->top_attach=0;		
 	tasklist->bottom_attach=1;
 	
+	my_tasklist_free_tasks (tasklist);
+	gtk_table_resize (GTK_TABLE(tasklist->table), 3, TABLE_COLUMNS);
+	
+	
 	
 	for (window_l = wnck_screen_get_windows (tasklist->screen); window_l != NULL; window_l = window_l->next)
     {
@@ -404,7 +407,9 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 		
 		if (!(wnck_window_is_skip_tasklist (win)))
 		{
-			LightTask *task = light_task_new_from_window (tasklist, win);
+			LightTask *task;
+			
+			task = light_task_new_from_window (tasklist, win);
 	
 			tasklist->tasks = g_list_prepend (tasklist->tasks, task);
 			
@@ -528,9 +533,11 @@ my_tasklist_drag_data_get_handl
 (GtkWidget *widget, GdkDragContext *context, GtkSelectionData *selection_data,
         guint target_type, guint time, LightTask *task)
 {
+	gulong xid;
+	
 	g_assert (selection_data != NULL);
 	
-	gulong xid;
+	
 	
 	xid = wnck_window_get_xid (task->window);
 	 
@@ -551,7 +558,10 @@ my_tasklist_drag_data_get_handl
 
 static void light_task_create_widgets (LightTask *task)
 {
-	task->label = gtk_label_new_with_mnemonic(wnck_window_get_name (task->window));
+	static const GtkTargetEntry targets [] = { {"application/x-wnck-window-id",0,0} };
+	
+	task->label = gtk_label_new ("");
+	gtk_label_set_text (GTK_LABEL (task->label), wnck_window_get_name (task->window));
 	task->vbox = gtk_vbox_new (FALSE, 0);
 		
 	task->pixbuf = wnck_window_get_icon (task->window);
@@ -577,7 +587,6 @@ static void light_task_create_widgets (LightTask *task)
 	task->state_changed_tag = g_signal_connect (task->window, "state-changed",
 					G_CALLBACK (my_tasklist_window_state_changed), task->tasklist);				
 					
-	static const GtkTargetEntry targets [] = { {"application/x-wnck-window-id",0,0} };
 					
 	gtk_drag_source_set (task->button,GDK_BUTTON1_MASK,targets,1,GDK_ACTION_MOVE);
 					
