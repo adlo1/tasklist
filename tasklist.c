@@ -28,6 +28,7 @@
 
 static void my_tasklist_update_windows (MyTasklist *tasklist);
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
+static void my_tasklist_on_window_closed (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist);
 static void my_tasklist_active_workspace_changed
 	(WnckScreen *screen, WnckWorkspace *previously_active_workspace, MyTasklist *tasklist);
 static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label);
@@ -36,6 +37,7 @@ static void my_tasklist_window_state_changed
 	(WnckWindow *window, WnckWindowState changed_mask, WnckWindowState new_state, MyTasklist *tasklist);
 static void my_tasklist_button_clicked (GtkButton *button, WnckWindow *window);
 static void my_tasklist_button_emit_click_signal (GtkButton *button, MyTasklist *tasklist);
+static void my_tasklist_free_skipped_windows (MyTasklist *tasklist);
 
 #define LIGHT_TASK_TYPE (light_task_get_type())
 #define LIGHT_TASK(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), LIGHT_TASK_TYPE, LightTask))
@@ -265,6 +267,11 @@ static void my_tasklist_init (MyTasklist *tasklist)
 	tasklist->tasks = NULL;
 	tasklist->skipped_windows = NULL;
 	
+	tasklist->left_attach =0;	
+	tasklist->right_attach=1;		
+	tasklist->top_attach=0;		
+	tasklist->bottom_attach=1;
+	
 	tasklist->table = gtk_table_new (3, TABLE_COLUMNS, TRUE);
 	gtk_container_add (GTK_CONTAINER(tasklist), tasklist->table);
 	
@@ -279,7 +286,7 @@ static void my_tasklist_init (MyTasklist *tasklist)
                 G_CALLBACK (my_tasklist_on_window_opened), tasklist); 
                 
     g_signal_connect (tasklist->screen, "window-closed",
-                G_CALLBACK (my_tasklist_on_window_opened), tasklist); 
+                G_CALLBACK (my_tasklist_on_window_closed), tasklist); 
                 
    g_signal_connect (tasklist->screen, "active-workspace-changed",
                G_CALLBACK (my_tasklist_active_workspace_changed), tasklist);
@@ -318,10 +325,16 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 			
 		}
 	}
+
 	tasklist->tasks = NULL;
-	g_assert (tasklist->tasks == NULL);
+	my_tasklist_free_skipped_windows (tasklist);
 	
-	//Free skipped windows
+}
+
+static void
+my_tasklist_free_skipped_windows (MyTasklist *tasklist)
+
+{	
 	
 	if (tasklist->skipped_windows)
 	
@@ -337,12 +350,36 @@ my_tasklist_free_tasks (MyTasklist *tasklist)
 			g_free (skipped);
 			skipped_l = skipped_l->next;
 		}
-	
-		g_list_free (tasklist->skipped_windows);
+		
 		tasklist->skipped_windows = NULL;
+	
+
 		
 	}
 	
+}
+
+static void my_tasklist_attach_widget (LightTask *task, MyTasklist *tasklist)
+{
+	gtk_table_attach_defaults (GTK_TABLE(tasklist->table), task->button, tasklist->left_attach, 
+						tasklist->right_attach, tasklist->top_attach, tasklist->bottom_attach);
+					
+					gtk_widget_show_all (task->button);
+					
+					
+					if (tasklist->right_attach % TABLE_COLUMNS == 0)
+					{
+						tasklist->top_attach++;
+						tasklist->bottom_attach++;
+						tasklist->left_attach=0;
+						tasklist->right_attach=1;
+					}
+				
+					else
+					{
+						tasklist->left_attach++;
+						tasklist->right_attach++;
+					}
 }
 
 static void my_tasklist_update_windows (MyTasklist *tasklist)
@@ -356,10 +393,10 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 	
 	//Table attachment values
 	
-	guint left_attach =0;	
-	guint right_attach=1;		
-	guint top_attach=0;		
-	guint bottom_attach=1;
+	tasklist->left_attach =0;	
+	tasklist->right_attach=1;		
+	tasklist->top_attach=0;		
+	tasklist->bottom_attach=1;
 	
 	
 	for (window_l = wnck_screen_get_windows (tasklist->screen); window_l != NULL; window_l = window_l->next)
@@ -369,32 +406,13 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 		if (!(wnck_window_is_skip_tasklist (win)))
 		{
 			LightTask *task = light_task_new_from_window (tasklist, win);
+	
 			tasklist->tasks = g_list_prepend (tasklist->tasks, task);
-			
 			
 			if(wnck_window_is_on_workspace(task->window, wnck_screen_get_active_workspace(tasklist->screen)))
 			{
 				
-				
-				gtk_table_attach_defaults (GTK_TABLE(tasklist->table), task->button, left_attach, 
-					right_attach, top_attach, bottom_attach);
-					
-				gtk_widget_show_all (task->button);
-					
-					
-				if (right_attach % TABLE_COLUMNS == 0)
-				{
-					top_attach++;
-					bottom_attach++;
-					left_attach=0;
-					right_attach=1;
-				}
-				
-				else
-				{
-					left_attach++;
-					right_attach++;
-				}
+				my_tasklist_attach_widget (task, tasklist);
 				
 			}
 			
@@ -408,10 +426,13 @@ static void my_tasklist_update_windows (MyTasklist *tasklist)
 							G_CALLBACK (my_tasklist_window_state_changed),
 							tasklist);
 							
-			tasklist->skipped_windows =
+		tasklist->skipped_windows =
 				g_list_prepend (tasklist->skipped_windows,
-					(gpointer) skipped);
+					skipped);
+					
 		}
+		
+
 	}
 	
 	
@@ -424,7 +445,76 @@ static void my_tasklist_on_name_changed (WnckWindow *window, GtkWidget *label)
 
 static void my_tasklist_on_window_opened (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
 {
+	if (wnck_window_is_skip_tasklist (window))
+	{
+		skipped_window *skipped = g_new0 (skipped_window, 1);
+			skipped->window = g_object_ref (window);
+			skipped->tag = g_signal_connect (G_OBJECT (window), "state-changed",
+							G_CALLBACK (my_tasklist_window_state_changed),
+							tasklist);
+							
+		tasklist->skipped_windows =
+				g_list_prepend (tasklist->skipped_windows,
+					skipped);
+		return;
+	}
+	
+	LightTask *task = light_task_new_from_window (tasklist, window);
+	
+	tasklist->tasks = g_list_prepend (tasklist->tasks, task);
+	
+	if(wnck_window_is_on_workspace(task->window, wnck_screen_get_active_workspace(tasklist->screen)))
+	{
+		my_tasklist_attach_widget (task, tasklist);
+	}
+						
+
+}
+
+static void my_tasklist_on_window_closed (WnckScreen *screen, WnckWindow *window, MyTasklist *tasklist)
+{
+	/*GList *window_l;
+	GList *skipped_l;
+	LightTask *task;
+	skipped_window *skipped;
+	
+	if (wnck_window_is_skip_tasklist (window))
+	{
+	
+		for (skipped_l = tasklist->skipped_windows; skipped_l != NULL; skipped_l = skipped_l->next)
+		{
+			skipped = skipped_l->data;
+		
+			if (skipped && skipped->window == window)
+			{
+				skipped_l = g_list_remove (skipped_l, skipped);
+				g_signal_handler_disconnect (skipped->window, skipped->tag);
+				g_object_unref (skipped->window);
+				g_free (skipped);
+			}
+		}
+	}
+	
+	
+	else
+	{
+	
+		for (window_l = tasklist->tasks; window_l != NULL; window_l = window_l->next)
+		{
+			task = window_l->data;
+		
+			if (task && task->window == window)
+			{
+				window_l = g_list_remove (window_l, task);
+				g_object_unref (task);
+				task = NULL;
+			}
+		}
+	}*/
+	
 	my_tasklist_update_windows (tasklist);
+			
+		
 }
 
 static void my_tasklist_active_workspace_changed

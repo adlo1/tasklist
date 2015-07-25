@@ -43,7 +43,10 @@ struct _MyTasklist
 	GList *tasks;
 	GList *skipped_windows;
 	
-	gboolean my_tasklist_button_click_action_is_set;
+	guint left_attach;	
+	guint right_attach;		
+	guint top_attach;		
+	guint bottom_attach;
 	
 	GHashTable *win_hash;
 	
