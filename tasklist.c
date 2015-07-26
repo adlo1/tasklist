@@ -562,8 +562,8 @@ static void light_task_create_widgets (LightTask *task)
 {
 	static const GtkTargetEntry targets [] = { {"application/x-wnck-window-id",0,0} };
 	
-	task->label = gtk_label_new ("");
-	gtk_label_set_text (GTK_LABEL (task->label), wnck_window_get_name (task->window));
+	task->label = gtk_label_new (wnck_window_get_name (task->window));
+	
 	task->vbox = gtk_vbox_new (FALSE, 0);
 		
 	task->pixbuf = wnck_window_get_icon (task->window);
